@@ -1,0 +1,4 @@
+Method,Deletion_AUC_mean,Deletion_AUC_std,Note
+Grad-CAM,0.2249,0.1142,Lower = more faithful
+LIME,0.2253,0.1621,Lower = more faithful
+SHAP,0.2105,0.1605,Lower = more faithful

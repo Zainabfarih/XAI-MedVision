@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.ipynb_checkpoints/
+
+# Node
+node_modules/
+dist/
+*.log
+npm-debug.log*
+
+# Model checkpoints (trop volumineux pour git)
+*.pth
+checkpoints/
+
+# Data
+data/raw/
+data/tensors/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/

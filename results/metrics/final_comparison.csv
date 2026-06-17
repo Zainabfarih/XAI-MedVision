@@ -1,0 +1,2 @@
+Model,Training,Accuracy,AUC_ROC,Precision,Recall,F1
+I-JEPA ViT-Small (linear probe),SSL + linear,0.8914,0.9582,0.9195,0.856,0.8866

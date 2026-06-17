@@ -1,0 +1,14 @@
+==========================================
+  EDA SUMMARY
+==========================================
+Total images      : 20432
+  Nodule (1)      : 10140  (49.6%)
+  No Nodule (0)   : 10292  (50.4%)
+Imbalance ratio   : 1.01:1
+Mean image size   : 256x256 px
+Global pixel mean : 0.2820
+Global pixel std  : 0.2060
+Train / Val / Test: 14302 / 3065 / 3065
+pos_weight        : 1.0149
+  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=  class_weights = torch.tensor([0.9926, 1.0075])=
+Pre-train pool     : 20432 images (unlabelled, all splits)

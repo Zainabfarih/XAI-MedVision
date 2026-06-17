@@ -1,0 +1,2 @@
+Model,Training,Accuracy,AUC_ROC,Precision,Recall,F1,Specificity,Sensitivity
+I-JEPA ViT-Small (linear probe),Self-supervised + linear,0.8914,0.9582,0.9195,0.856,0.8866,0.9262,0.856

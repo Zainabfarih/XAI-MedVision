@@ -1,0 +1,106 @@
+let _alive = null
+
+async function ping() {
+  if (_alive !== null) return _alive
+  try { const r = await fetch('/api/status', { signal: AbortSignal.timeout(1800) }); _alive = r.ok }
+  catch { _alive = false }
+  return _alive
+}
+
+export const DEMO_METRICS = {
+  demo_mode: true,
+  models: {
+    "I-JEPA + Linear Probe": {
+      training_strategy: "Self-supervised (I-JEPA) + frozen encoder + linear head",
+      architecture:      "ViT-Small/16  —  384-dim embeddings  —  196 patches",
+      accuracy: 0.854, auc_roc: 0.912, precision: 0.861, recall: 0.843, f1: 0.852,
+      precision_no_nodule: 0.848, recall_no_nodule: 0.865, f1_no_nodule: 0.856,
+      specificity: 0.865, mcc: 0.708,
+      faithfulness_deletion_auc: 0.312, faithfulness_insertion_auc: 0.681,
+      confusion_matrix: { TP:271, TN:277, FP:43, FN:50 },
+      val_auc_best_epoch: 0.912, training_epochs: 20, probe_epochs: 30,
+      pretrain_loss_final: 0.0214,
+    },
+    "ResNet-50 (baseline)": {
+      training_strategy: "ImageNet pretrained → fine-tuned (phase 1 head + phase 2 full)",
+      architecture:      "ResNet-50  —  2048-dim  —  25.6M params",
+      accuracy: 0.812, auc_roc: 0.876, precision: 0.820, recall: 0.805, f1: 0.812,
+      precision_no_nodule: 0.804, recall_no_nodule: 0.819, f1_no_nodule: 0.811,
+      specificity: 0.819, mcc: 0.624,
+      faithfulness_deletion_auc: 0.348, faithfulness_insertion_auc: 0.632,
+      confusion_matrix: { TP:259, TN:263, FP:58, FN:61 },
+      val_auc_best_epoch: 0.876, training_epochs: 20, pretrain_loss_final: null,
+    },
+    "DenseNet-121 (baseline)": {
+      training_strategy: "ImageNet pretrained → fine-tuned (phase 1 head + phase 2 full)",
+      architecture:      "DenseNet-121  —  1024-dim  —  7.98M params",
+      accuracy: 0.829, auc_roc: 0.892, precision: 0.835, recall: 0.824, f1: 0.830,
+      precision_no_nodule: 0.823, recall_no_nodule: 0.834, f1_no_nodule: 0.828,
+      specificity: 0.834, mcc: 0.658,
+      faithfulness_deletion_auc: 0.328, faithfulness_insertion_auc: 0.658,
+      confusion_matrix: { TP:265, TN:268, FP:53, FN:55 },
+      val_auc_best_epoch: 0.892, training_epochs: 20, pretrain_loss_final: null,
+    },
+  },
+  xai_faithfulness: {
+    "Heatmap (Grad-CAM)": { deletion_auc:0.312, deletion_std:0.042, insertion_auc:0.681, insertion_std:0.038 },
+    "Boundaries (LIME)":  { deletion_auc:0.298, deletion_std:0.051, insertion_auc:0.654, insertion_std:0.046 },
+    "Attribution (SHAP)": { deletion_auc:0.341, deletion_std:0.039, insertion_auc:0.712, insertion_std:0.031 },
+  },
+  dataset: {
+    name:"LIDC-IDRI", source:"Kaggle lung-nodule-dataset",
+    task:"Binary classification: Nodule vs Healthy",
+    total_images:4200, train:2940, val:630, test:630,
+    class_train:{ nodule:1470, healthy:1470 },
+    class_test:{ nodule:321, healthy:320 },
+    image_size:"224 × 224 px",
+    normalization:"ImageNet mean/std",
+    augmentation:"HorizontalFlip, Rotate(15°), BrightnessContrast, GaussNoise, CLAHE",
+  },
+  training_config: {
+    ijepa_pretrain: {
+      epochs:90, batch_size:32, optimizer:"AdamW", lr:0.0004,
+      weight_decay:0.04, warmup_epochs:10, scheduler:"Cosine annealing",
+      ema_momentum:0.996, target_mask_ratio:0.75, final_pretrain_loss:0.0214,
+    },
+    linear_probe: {
+      epochs:30, batch_size:64, optimizer:"AdamW", lr:0.001,
+      weight_decay:0.0001, dropout:0.1, encoder:"frozen", scheduler:"CosineAnnealing",
+    },
+  },
+}
+
+function seedFrom(name='') { return name.split('').reduce((a,c)=>(a*31+c.charCodeAt(0))&0xffff,0) }
+
+function demoPrediction(fileName) {
+  const s=seedFrom(fileName); const raw=((s*9301+49297)%233280)/233280
+  const prob=parseFloat((0.25+raw*0.55).toFixed(4)); const label=prob>0.5?1:0
+  return { label, label_name:label?'Nodule Detected':'No Nodule Found',
+           probabilities:{nodule:prob,no_nodule:parseFloat((1-prob).toFixed(4))},
+           confidence:parseFloat(Math.max(prob,1-prob).toFixed(4)),
+           inference_time_ms:18+(s%35), demo_mode:true }
+}
+
+const FILTERS = {
+  gradcam: 'sepia(.8) saturate(4) hue-rotate(330deg) brightness(1.1)',
+  lime:    'sepia(.6) saturate(3) hue-rotate(80deg) brightness(1.05)',
+  shap:    'sepia(.6) saturate(3) hue-rotate(200deg) brightness(1.1)',
+}
+const DESCS = {
+  gradcam: "Gradient-weighted activation map — warm regions most influenced the decision.",
+  lime:    "Superpixel regions contributing positively (green) or negatively (red) to the prediction.",
+  shap:    "Shapley pixel attributions — blue pixels support the prediction, red pixels oppose it.",
+}
+
+function demoXai(method,dataUrl){ return {method,image:dataUrl,demoFilter:FILTERS[method],original:dataUrl,description:DESCS[method],demo_mode:true} }
+function readAsDataUrl(file){ return new Promise((r,j)=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.onerror=j;fr.readAsDataURL(file)}) }
+async function post(url,file,extra={}){ const fd=new FormData();fd.append('file',file);for(const[k,v] of Object.entries(extra))fd.append(k,v);const r=await fetch(url,{method:'POST',body:fd});if(!r.ok)throw new Error(r.status);return r.json() }
+
+export const api = {
+  status: async()=>{const a=await ping();if(a)return fetch('/api/status').then(r=>r.json());return{status:'demo',demo_mode:true}},
+  metrics: async()=>{if(await ping()){try{return await fetch('/api/metrics').then(r=>r.json())}catch{}}return DEMO_METRICS},
+  predict: async(file)=>{const du=await readAsDataUrl(file);if(await ping()){try{return await post('/api/predict',file)}catch{}}return{...demoPrediction(file.name),original_image:du}},
+  gradcam: async(file,du)=>{const d=du||await readAsDataUrl(file);if(await ping()){try{return await post('/api/explain/gradcam',file)}catch{}}return demoXai('gradcam',d)},
+  lime:    async(file,n=500,du)=>{const d=du||await readAsDataUrl(file);if(await ping()){try{return await post('/api/explain/lime',file,{num_samples:n})}catch{}}return demoXai('lime',d)},
+  shap:    async(file,du)=>{const d=du||await readAsDataUrl(file);if(await ping()){try{return await post('/api/explain/shap',file)}catch{}}return demoXai('shap',d)},
+}

@@ -1,0 +1,72 @@
+.nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  height: var(--nav-h);
+  background: rgba(255,255,255,.8);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid transparent;
+  transition: border-color .2s, box-shadow .2s;
+}
+.nav--up {
+  border-bottom-color: var(--border);
+  box-shadow: 0 1px 20px rgba(0,0,0,.06);
+}
+.nav-inner {
+  max-width: 1160px; margin: 0 auto; padding: 0 1.5rem;
+  height: 100%; display: flex; align-items: center; gap: 1.5rem;
+}
+.nav-logo {
+  display: flex; align-items: center; gap: 9px;
+  font-size: 19px; font-weight: 800;
+  color: var(--dark); letter-spacing: -.03em;
+  flex-shrink: 0;
+}
+.nav-links { display: flex; gap: 2px; flex: 1; }
+.nav-link {
+  padding: 7px 13px; border-radius: var(--rad-sm);
+  font-size: 14px; font-weight: 500; color: var(--g500);
+  transition: all .15s;
+}
+.nav-link:hover  { color: var(--g900); background: var(--g100); }
+.nav-link.active { color: var(--primary); background: var(--primary-lt); }
+.nav-right { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+
+.hamburger {
+  display: none; background: none; border: none;
+  width: 34px; height: 34px; align-items: center; justify-content: center;
+  border-radius: var(--rad-sm);
+}
+.hamburger span {
+  display: block; width: 19px; height: 2px;
+  background: var(--g700); border-radius: 2px;
+  position: relative; transition: all .2s;
+}
+.hamburger span::before,
+.hamburger span::after {
+  content: ''; position: absolute; left: 0;
+  width: 19px; height: 2px; background: var(--g700);
+  border-radius: 2px; transition: all .2s;
+}
+.hamburger span::before { top: -6px; }
+.hamburger span::after  { top:  6px; }
+.hamburger span.x { background: transparent; }
+.hamburger span.x::before { top: 0; transform: rotate(45deg); }
+.hamburger span.x::after  { top: 0; transform: rotate(-45deg); }
+
+.nav-drawer {
+  border-top: 1px solid var(--border);
+  background: #fff;
+  padding: 1rem 1.5rem 1.5rem;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.drawer-link {
+  display: block; padding: 10px 12px;
+  border-radius: var(--rad-sm);
+  font-size: 15px; font-weight: 500; color: var(--g700);
+}
+.drawer-link:hover { background: var(--g50); }
+
+@media (max-width: 620px) {
+  .nav-links { display: none; }
+  .hamburger { display: flex; }
+  .nav-right .btn { display: none; }
+}
