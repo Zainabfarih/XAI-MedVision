@@ -5,6 +5,15 @@ Interface web pour la détection de nodules pulmonaires avec explications visuel
 - **backend** — API FastAPI (Python) : prédiction + Grad-CAM, LIME, SHAP
 - **frontend** — Application React + Vite
 
+## Entrées 2D et 3D (pseudo-3D)
+
+Le modèle reste **2D** (coupes `224×224`). L'interface accepte deux types d'upload :
+
+- **Image 2D** (`.png`, `.jpg`, `.tiff`) → prédiction + XAI sur la coupe, via `/api/predict` et `/api/explain/*`.
+- **Volume 3D** (`.nii`, `.nii.gz`, `.dcm`/`.dicom`, `.npy`, `.npz`, TIFF multipage) → le backend découpe le volume en coupes 2D, applique le modèle 2D sur chaque coupe, puis agrège : verdict global, score par coupe, et coupe la plus suspecte. Endpoint : `/api/predict/volume`.
+
+> En pseudo-3D, le modèle n'est pas réentraîné : c'est une boucle 2D sur les coupes. La coupe la plus suspecte alimente les vues Heatmap / Boundaries / Attribution.
+
 ## Prérequis
 
 - Python 3.11 (PyTorch ne supporte pas encore 3.14)

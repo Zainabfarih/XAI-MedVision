@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
-import { api } from '../api/client'
+import { api, isVolumeFile, dataUrlToFile } from '../api/client'
 import './Analyze.css'
 
 const TABS = ['Results','Heatmap','Boundaries','Attribution','Compare']
@@ -14,6 +14,8 @@ const XAI_DESCS = {
 export default function Analyze() {
   const [file,    setFile]    = useState(null)
   const [preview, setPreview] = useState(null)
+  const [isVol,   setIsVol]   = useState(false)
+  const [xaiFile, setXaiFile] = useState(null)
   const [loading, setLoading] = useState(false)
   const [result,  setResult]  = useState(null)
   const [xai,     setXai]     = useState({})
@@ -25,10 +27,12 @@ export default function Analyze() {
 
   const pickFile = useCallback(f => {
     if (!f) return
-    const ok = f.type.startsWith('image/')
-    if (!ok) { setError('Please upload an image file (PNG, JPG, TIFF).'); return }
-    setFile(f); setPreview(URL.createObjectURL(f))
-    setResult(null); setXai({}); setError(null); setTab('Results')
+    const vol = isVolumeFile(f)
+    const ok = vol || f.type.startsWith('image/')
+    if (!ok) { setError('Upload a 2D image (PNG, JPG, TIFF) or a 3D volume (NIfTI, DICOM, NPY).'); return }
+    setFile(f); setIsVol(vol)
+    setPreview(vol ? null : URL.createObjectURL(f))
+    setResult(null); setXai({}); setXaiFile(null); setError(null); setTab('Results')
   }, [])
 
   const onDrop = e => {
@@ -39,8 +43,34 @@ export default function Analyze() {
     if (!file) return
     setLoading(true); setError(null)
     try {
-      const data = await api.predict(file)
-      setResult(data); setTab('Results')
+      if (isVol) {
+        const v = await api.predictVolume(file)
+        const top = v.slice_results.reduce((a, b) => (b.nodule > a.nodule ? b : a), v.slice_results[0])
+        const pred = v.max_slice?.prediction
+        if (pred) {
+          setXaiFile(dataUrlToFile(pred.original_image, 'slice.png'))
+          setResult({ ...pred, is_volume: true, volume: v })
+          setXai(v.max_slice.gradcam
+            ? { gradcam: { method: 'gradcam', image: v.max_slice.gradcam,
+                original: pred.original_image, demo_mode: false,
+                description: 'Gradient-weighted activation map for the most suspicious slice.' } }
+            : {})
+        } else {
+          setXaiFile(null); setXai({})
+          setResult({
+            is_volume: true, demo_mode: true, volume: v,
+            label: v.volume_label, label_name: v.volume_label_name,
+            probabilities: { nodule: top.nodule, no_nodule: +(1 - top.nodule).toFixed(4) },
+            confidence: +Math.max(top.nodule, 1 - top.nodule).toFixed(4),
+            inference_time_ms: v.inference_time_ms, original_image: null,
+          })
+        }
+        setTab('Volume')
+      } else {
+        const data = await api.predict(file)
+        setXaiFile(file)
+        setResult(data); setTab('Results')
+      }
     } catch {
       setError('Analysis failed. Check the console for details.')
     } finally { setLoading(false) }
@@ -49,13 +79,15 @@ export default function Analyze() {
   const runXai = async method => {
     const key = XAI_KEYS[method]
     if (!key || xai[key]) return
+    const src = xaiFile || file
+    if (!src) return
     setXLoad(p => ({ ...p, [key]: true }))
     try {
       const du = result?.original_image || preview
       let data
-      if (key === 'gradcam')   data = await api.gradcam(file, du)
-      else if (key === 'lime') data = await api.lime(file, 500, du)
-      else                     data = await api.shap(file, du)
+      if (key === 'gradcam')   data = await api.gradcam(src, du)
+      else if (key === 'lime') data = await api.lime(src, 500, du)
+      else                     data = await api.shap(src, du)
       setXai(p => ({ ...p, [key]: data }))
     } finally { setXLoad(p => ({ ...p, [key]: false })) }
   }
@@ -96,7 +128,7 @@ export default function Analyze() {
                 onDrop={onDrop}
                 onClick={()=>!preview && inputRef.current?.click()}
               >
-                <input ref={inputRef} type="file" accept="image/*"
+                <input ref={inputRef} type="file" accept="image/*,.nii,.nii.gz,.dcm,.dicom,.npy,.npz,.tif,.tiff"
                   style={{display:'none'}} onChange={e=>pickFile(e.target.files[0])}/>
                 {preview ? (
                   <>
@@ -108,6 +140,23 @@ export default function Analyze() {
                       </button>
                     </div>
                   </>
+                ) : (file && isVol) ? (
+                  <div className="upload-empty">
+                    <div className="upload-icon-box">
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+                        <polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>
+                      </svg>
+                    </div>
+                    <p style={{fontWeight:600,fontSize:14,marginTop:10}}>3D volume ready</p>
+                    <p style={{fontSize:12,color:'var(--g400)',marginTop:4}}>
+                      Sliced into 2D views on analysis
+                    </p>
+                    <button className="btn btn-sm" style={{marginTop:10,background:'var(--g100)',color:'var(--g700)'}}
+                      onClick={e=>{e.stopPropagation();inputRef.current?.click()}}>
+                      Change
+                    </button>
+                  </div>
                 ) : (
                   <div className="upload-empty">
                     <div className="upload-icon-box">
@@ -120,7 +169,7 @@ export default function Analyze() {
                     <p style={{fontSize:12,color:'var(--g400)',marginTop:4}}>
                       or <span style={{color:'var(--primary)',fontWeight:600}}>browse files</span>
                     </p>
-                    <p style={{fontSize:11,color:'var(--g300)',marginTop:10}}>PNG · JPG · TIFF</p>
+                    <p style={{fontSize:11,color:'var(--g300)',marginTop:10}}>2D: PNG · JPG · TIFF &nbsp;|&nbsp; 3D: NIfTI · DICOM · NPY</p>
                   </div>
                 )}
               </div>
@@ -134,7 +183,7 @@ export default function Analyze() {
                   <span className="file-name">{file.name}</span>
                   <span style={{fontSize:11,color:'var(--g400)',flexShrink:0}}>{(file.size/1024).toFixed(0)} KB</span>
                   <button className="file-del"
-                    onClick={()=>{setFile(null);setPreview(null);setResult(null);setXai({})}}>
+                    onClick={()=>{setFile(null);setPreview(null);setIsVol(false);setXaiFile(null);setResult(null);setXai({})}}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                   </button>
                 </div>
@@ -147,7 +196,7 @@ export default function Analyze() {
                 onClick={runAnalysis}>
                 {loading
                   ? <><div className="spinner"/><span>Analyzing…</span></>
-                  : <><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span>Analyze Scan</span></>
+                  : <><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span>{isVol?'Analyze Volume':'Analyze Scan'}</span></>
                 }
               </button>
             </div>
@@ -186,9 +235,15 @@ export default function Analyze() {
                   </b>
                 </div>
                 <div style={{fontSize:11,color:'var(--g400)',marginTop:8,display:'flex',justifyContent:'space-between'}}>
-                  <span>I-JEPA + Linear Probe</span>
+                  <span>{result.is_volume ? '3D volume · per-slice' : 'I-JEPA + Linear Probe'}</span>
                   <span>{result.inference_time_ms} ms</span>
                 </div>
+                {result.is_volume && (
+                  <div style={{fontSize:11,color:'var(--g400)',marginTop:4,display:'flex',justifyContent:'space-between'}}>
+                    <span>{result.volume.num_slices_processed} slices analyzed</span>
+                    <span>{result.volume.num_positive_slices} positive</span>
+                  </div>
+                )}
               </div>
             )}
           </aside>
@@ -199,7 +254,9 @@ export default function Analyze() {
             {/* Tabs */}
             {result && (
               <div className="az-tabs">
-                {TABS.map(t=>(
+                {(result.is_volume
+                  ? (result.original_image ? ['Volume', ...TABS.slice(1)] : ['Volume'])
+                  : TABS).map(t=>(
                   <button key={t} className={`az-tab${tab===t?' active':''}`} onClick={()=>onTab(t)}>
                     {t}
                     {XAI_KEYS[t] && xai[XAI_KEYS[t]] && <span className="tab-done"/>}
@@ -232,13 +289,108 @@ export default function Analyze() {
               </div>
             )}
 
+            {/* Volume tab — verdict + per-slice detail + most-suspicious slice XAI */}
+            {result && result.is_volume && tab==='Volume' && (() => {
+              const vol = result.volume
+              const slices = vol.slice_results || []
+              const maxNodule = slices.reduce((m, s) => Math.max(m, s.nodule), 0)
+              const topIdx = vol.max_slice?.index
+              return (
+              <div className="tab-body">
+                <div className={`vol-verdict${isNodule?' v-red':' v-green'}`}>
+                  <div className="vol-verdict-icon">{isNodule?'⚠':'✓'}</div>
+                  <h2 className="vol-verdict-title">
+                    {isNodule ? 'Nodule Detected' : 'No Nodule Found'}
+                  </h2>
+                  <p className="vol-verdict-sub">
+                    {isNodule
+                      ? `Nodule found in ${vol.num_positive_slices} of ${vol.num_slices_processed} analyzed slices.`
+                      : `No nodule across ${vol.num_slices_processed} analyzed slices.`}
+                  </p>
+                  <div className="vol-verdict-meta">
+                    {result.demo_mode && <span className="badge badge-amber" style={{fontSize:11}}>Demo</span>}
+                  </div>
+                </div>
+
+                {/* Volume statistics */}
+                <p className="label" style={{margin:'22px 0 10px'}}>Volume breakdown</p>
+                <div className="detail-list">
+                  {[
+                    ['Total slices',        vol.num_slices_total],
+                    ['Slices analyzed',     vol.num_slices_processed],
+                    ['Positive slices',     `${vol.num_positive_slices} (${((vol.num_positive_slices/vol.num_slices_processed)*100).toFixed(1)}%)`],
+                    ['Most suspicious slice', topIdx != null ? `#${topIdx}` : '—'],
+                    ['Peak nodule score',   `${(maxNodule*100).toFixed(2)}%`],
+                    ['Processing',          `${vol.inference_time_ms} ms`],
+                    ['Mode',                result.demo_mode ? 'Demo (simulated)' : 'Live model'],
+                  ].map(([k,v])=>(
+                    <div key={k} className="detail-row">
+                      <span className="dk">{k}</span>
+                      <span className="dv">{v}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Per-slice score chart */}
+                <p className="label" style={{margin:'22px 0 10px'}}>Per-slice nodule score</p>
+                <div className="slice-chart">
+                  {slices.map(s=>(
+                    <div
+                      key={s.index}
+                      className={`slice-bar${s.label===1?' pos':''}${s.index===topIdx?' top':''}`}
+                      style={{height:`${Math.max(2, s.nodule*100)}%`}}
+                      title={`Slice #${s.index} — ${(s.nodule*100).toFixed(1)}%`}
+                    />
+                  ))}
+                </div>
+                <div className="slice-legend">
+                  <span><i className="dot dot-pos"/> Above threshold</span>
+                  <span><i className="dot dot-neg"/> Below threshold</span>
+                  <span><i className="dot dot-top"/> Most suspicious</span>
+                </div>
+
+                {/* Most-suspicious-slice explainability */}
+                {result.original_image && (
+                  <>
+                    <p className="label" style={{margin:'22px 0 10px'}}>
+                      Why this decision? — Grad-CAM on slice #{topIdx}
+                    </p>
+                    <div className="xai-duo">
+                      <div>
+                        <p style={{fontSize:12,color:'var(--g400)',marginBottom:8}}>Suspicious slice</p>
+                        <div className="xai-img-box dark"><img src={result.original_image} alt="slice"/></div>
+                      </div>
+                      <div>
+                        <p style={{fontSize:12,color:'var(--g400)',marginBottom:8}}>Heatmap</p>
+                        <div className="xai-img-box dark">
+                          {xai.gradcam
+                            ? <img src={xai.gradcam.image} alt="gradcam"/>
+                            : <div className="xai-center"><span style={{fontSize:12,color:'var(--g400)'}}>Computing…</span></div>}
+                        </div>
+                      </div>
+                    </div>
+                    <button className="btn btn-outline" style={{width:'100%',justifyContent:'center',marginTop:12}}
+                      onClick={()=>onTab('Compare')}>
+                      View all explanations (Heatmap · Boundaries · Attribution) →
+                    </button>
+                  </>
+                )}
+
+                <div className="notice" style={{marginTop:16}}>
+                  The 2D model scores every slice of the volume independently. The volume is reported as positive if any single slice crosses the detection threshold. The explainability views above apply to the most suspicious slice. This analysis is a research aid only and does not constitute medical advice.
+                </div>
+              </div>
+            )})()}
+
             {/* Results tab */}
             {result && tab==='Results' && (
               <div className="tab-body">
                 <div className="res-grid">
                   <div>
                     <p className="label" style={{marginBottom:10}}>Uploaded scan</p>
-                    <img src={result.original_image||preview} alt="CT scan" className="scan-disp"/>
+                    {(result.original_image||preview)
+                      ? <img src={result.original_image||preview} alt="CT scan" className="scan-disp"/>
+                      : <div className="xai-img-box dark" style={{aspectRatio:'1'}}><div className="xai-center"><span style={{fontSize:12,color:'var(--g400)'}}>3D volume — no 2D preview</span></div></div>}
                   </div>
                   <div>
                     <p className="label" style={{marginBottom:10}}>Assessment summary</p>

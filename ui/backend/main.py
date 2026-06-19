@@ -103,6 +103,122 @@ def read_image(data):
     return (vis - MEAN) / STD, vis
 
 
+# ─────────────────────────── Pseudo-3D (volume) ────────────────────────────
+# The model stays 2D. A 3D volume is split into 2D slices; each slice is run
+# through the same 2D pipeline, then results are aggregated over the volume.
+
+VOLUME_EXTS = (".nii", ".nii.gz", ".dcm", ".dicom", ".npy", ".npz", ".tif", ".tiff")
+MAX_SLICES  = 160  # cap processed slices (evenly sampled) to keep latency sane
+
+
+def is_volume_file(filename):
+    name = (filename or "").lower()
+    return name.endswith(VOLUME_EXTS)
+
+
+def _load_nifti(data, suffix):
+    import tempfile, nibabel as nib
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        tmp.write(data); tmp_path = tmp.name
+    try:
+        vol = nib.load(tmp_path).get_fdata()
+    finally:
+        try: os.remove(tmp_path)
+        except OSError: pass
+    return np.asarray(vol, dtype=np.float32)
+
+
+def _load_dicom(data):
+    import pydicom
+    ds = pydicom.dcmread(io.BytesIO(data), force=True)
+    arr = ds.pixel_array.astype(np.float32)
+    slope = float(getattr(ds, "RescaleSlope", 1) or 1)
+    inter = float(getattr(ds, "RescaleIntercept", 0) or 0)
+    return arr * slope + inter
+
+
+def _load_tiff(data):
+    from PIL import ImageSequence
+    img = Image.open(io.BytesIO(data))
+    frames = [np.array(f.convert("F"), dtype=np.float32) for f in ImageSequence.Iterator(img)]
+    return np.stack(frames, axis=0)
+
+
+def load_volume(data, filename):
+    """Return a 3D float array (slices, H, W)."""
+    name = (filename or "").lower()
+    if name.endswith(".nii.gz"):
+        vol = _load_nifti(data, ".nii.gz")
+    elif name.endswith(".nii"):
+        vol = _load_nifti(data, ".nii")
+    elif name.endswith((".dcm", ".dicom")):
+        vol = _load_dicom(data)
+    elif name.endswith(".npy"):
+        vol = np.asarray(np.load(io.BytesIO(data)), dtype=np.float32)
+    elif name.endswith(".npz"):
+        npz = np.load(io.BytesIO(data))
+        vol = np.asarray(npz[list(npz.files)[0]], dtype=np.float32)
+    elif name.endswith((".tif", ".tiff")):
+        vol = _load_tiff(data)
+    else:
+        raise ValueError("Unsupported volume format")
+
+    vol = np.squeeze(vol)
+    if vol.ndim == 2:
+        vol = vol[None, ...]                      # single slice → 1-slice volume
+    elif vol.ndim == 3:
+        axis = int(np.argmin(vol.shape))          # slices = axis with fewest elements
+        vol = np.moveaxis(vol, axis, 0)
+    elif vol.ndim == 4:
+        vol = np.squeeze(vol[..., 0])
+        if vol.ndim == 3:
+            vol = np.moveaxis(vol, int(np.argmin(vol.shape)), 0)
+        else:
+            vol = vol[None, ...]
+    else:
+        raise ValueError(f"Unsupported volume shape {vol.shape}")
+    return vol
+
+
+def slice_to_arrays(slc):
+    """Window a raw 2D slice to a normalized tensor input + RGB visual."""
+    s = slc.astype(np.float32)
+    lo, hi = np.percentile(s, 1), np.percentile(s, 99)
+    if hi <= lo:
+        lo, hi = float(s.min()), float(s.max())
+    s = np.clip((s - lo) / (hi - lo + 1e-8), 0, 1)
+    img = Image.fromarray((s * 255).astype(np.uint8)).convert("RGB").resize(
+        (IMG_SIZE, IMG_SIZE), Image.LANCZOS)
+    vis = np.array(img, dtype=np.float32) / 255.0
+    return (vis - MEAN) / STD, vis
+
+
+def sample_slice_indices(n):
+    if n <= MAX_SLICES:
+        return list(range(n))
+    return [int(round(i * (n - 1) / (MAX_SLICES - 1))) for i in range(MAX_SLICES)]
+
+
+def live_predict_volume(norms):
+    import torch
+    probs = []
+    with torch.no_grad():
+        for i in range(0, len(norms), 16):
+            batch = np.stack(norms[i:i + 16]).transpose(0, 3, 1, 2)
+            x = torch.from_numpy(batch).float().to(_device)
+            p = torch.softmax(_model(x), dim=1)[:, 1].cpu().numpy()
+            probs.extend(p.tolist())
+    return probs
+
+
+def demo_predict_volume(vises):
+    probs = []
+    for vis in vises:
+        rng = random.Random(_seed(vis))
+        probs.append(round(rng.betavariate(2, 2), 4))
+    return probs
+
+
 def to_b64(arr):
     if arr.dtype != np.uint8:
         arr = np.clip(arr * 255, 0, 255).astype(np.uint8)
@@ -333,6 +449,61 @@ async def explain_all(file: UploadFile = File(...)):
                 "lime": {"image": to_b64(run_lime(norm, vis)), "description": "LIME superpixel boundaries."},
                 "shap": {"image": to_b64(run_shap(norm, vis)), "description": "Pixel attribution map."}},
             "total_time_ms": round((time.time() - t0) * 1000, 1), "demo_mode": _demo}
+
+
+@app.post("/api/predict/volume")
+async def predict_volume(file: UploadFile = File(...), threshold: float = Form(default=0.5)):
+    """Pseudo-3D: split an uploaded volume into 2D slices, run the 2D model on
+    each slice, and aggregate. Returns per-slice scores plus the most suspicious
+    slice (with its Grad-CAM) so the existing 2D XAI views can reuse it."""
+    t0 = time.time()
+    data = await file.read()
+    try:
+        vol = load_volume(data, file.filename)
+    except Exception as e:
+        raise HTTPException(422, f"Invalid or unsupported volume ({e})")
+
+    n_total = vol.shape[0]
+    indices = sample_slice_indices(n_total)
+    norms, vises = [], []
+    for idx in indices:
+        norm, vis = slice_to_arrays(vol[idx])
+        norms.append(norm); vises.append(vis)
+
+    probs = live_predict_volume(norms) if not _demo else demo_predict_volume(vises)
+
+    slice_results = [
+        {"index": int(idx), "nodule": round(float(p), 4), "label": int(p > threshold)}
+        for idx, p in zip(indices, probs)
+    ]
+    n_pos = sum(1 for s in slice_results if s["label"] == 1)
+    top = int(np.argmax(probs))
+    top_prob = float(probs[top])
+    top_idx = int(indices[top])
+    vol_label = int(n_pos > 0)
+
+    # Most suspicious slice: full 2D prediction + Grad-CAM, reusing the 2D path.
+    top_norm, top_vis = norms[top], vises[top]
+    top_pred = run_predict(top_norm, top_vis)
+    top_pred["original_image"] = to_b64(top_vis)
+    gradcam_img = to_b64(run_gradcam(top_norm, top_vis))
+
+    return {
+        "type": "volume",
+        "num_slices_total": n_total,
+        "num_slices_processed": len(indices),
+        "num_positive_slices": n_pos,
+        "volume_label": vol_label,
+        "volume_label_name": "Nodule Detected" if vol_label else "No Nodule Found",
+        "slice_results": slice_results,
+        "max_slice": {
+            "index": top_idx,
+            "prediction": top_pred,
+            "gradcam": gradcam_img,
+        },
+        "demo_mode": _demo,
+        "inference_time_ms": round((time.time() - t0) * 1000, 1),
+    }
 
 
 @app.get("/api/metrics")

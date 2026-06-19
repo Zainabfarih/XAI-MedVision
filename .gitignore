@@ -20,6 +20,7 @@ checkpoints/
 # Data
 data/raw/
 data/tensors/
+data/3d/
 
 # OS / IDE
 .DS_Store

@@ -142,3 +142,71 @@
 .cmp-card { border:1px solid var(--border);border-radius:var(--rad);overflow:hidden; }
 .cmp-head { padding:9px 13px;background:var(--g50);border-bottom:1px solid var(--border); }
 .cmp-desc { padding:9px 13px;font-size:11.5px;color:var(--g500);line-height:1.55; }
+
+/* ─────────────── Pseudo-3D volume verdict ─────────────── */
+.vol-verdict {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 40px 24px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+.vol-verdict.v-red   { background: rgba(239,68,68,.06);  border-color: rgba(239,68,68,.3); }
+.vol-verdict.v-green { background: rgba(16,185,129,.06); border-color: rgba(16,185,129,.3); }
+.vol-verdict-icon {
+  font-size: 34px;
+  line-height: 1;
+}
+.vol-verdict.v-red   .vol-verdict-icon { color: var(--danger, #ef4444); }
+.vol-verdict.v-green .vol-verdict-icon { color: var(--success, #10b981); }
+.vol-verdict-title { font-size: 24px; margin: 4px 0 0; }
+.vol-verdict.v-red   .vol-verdict-title { color: var(--danger, #ef4444); }
+.vol-verdict.v-green .vol-verdict-title { color: var(--success, #10b981); }
+.vol-verdict-sub { font-size: 14px; color: var(--g500); margin: 0; }
+.vol-verdict-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+/* ─────────────── Per-slice score chart ─────────────── */
+.slice-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 140px;
+  padding: 10px;
+  background: #0a0f1e;
+  border: 1px solid var(--border);
+  border-radius: var(--rad);
+  overflow-x: auto;
+}
+.slice-bar {
+  flex: 1 0 4px;
+  min-width: 4px;
+  background: rgba(148, 163, 184, .35);
+  border-radius: 2px 2px 0 0;
+  transition: background .15s;
+}
+.slice-bar:hover { background: rgba(148, 163, 184, .7); }
+.slice-bar.pos   { background: rgba(239, 68, 68, .65); }
+.slice-bar.pos:hover { background: rgba(239, 68, 68, .9); }
+.slice-bar.top   { background: var(--primary, #3b82f6); box-shadow: 0 0 0 1px var(--primary, #3b82f6); }
+
+.slice-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--g500);
+}
+.slice-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.slice-legend .dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.slice-legend .dot-pos { background: rgba(239, 68, 68, .65); }
+.slice-legend .dot-neg { background: rgba(148, 163, 184, .35); }
+.slice-legend .dot-top { background: var(--primary, #3b82f6); }

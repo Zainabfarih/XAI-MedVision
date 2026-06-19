@@ -7,3 +7,5 @@ scikit-image>=0.22.0
 scipy>=1.12.0
 torch>=2.2.0
 timm>=0.9.16
+nibabel>=5.2.0
+pydicom>=2.4.0
