@@ -13,16 +13,23 @@ dist/
 *.log
 npm-debug.log*
 
-# Model checkpoints (trop volumineux pour git)
+# Model checkpoints (too large for git — see README for download)
 *.pth
 checkpoints/
 
-# Data
+# Datasets (too large for git — see README for download)
 data/raw/
-data/tensors/
 data/3d/
+data/tensors/
+
+# Keep the small processed splits and test samples in the repo
+!data/processed/
+!data/samples/
 
 # OS / IDE
 .DS_Store
 Thumbs.db
 .vscode/
+
+# Temp
+_tmp_*.py

@@ -28,7 +28,6 @@ function ModelCard({ name, m, isTop }) {
     <div className={`mcard${isTop?' mcard-top':''}`}>
       <div className="mcard-hd" onClick={()=>setOpen(o=>!o)}>
         <div style={{display:'flex',alignItems:'center',gap:10,flex:1,minWidth:0}}>
-          {isTop && <span className="best-pill">Best</span>}
           <div>
             <div style={{fontWeight:700,fontSize:14,color:'var(--dark)'}}>{name}</div>
             <div style={{fontSize:11,color:'var(--g400)',marginTop:2}}>{m.architecture}</div>
@@ -81,7 +80,7 @@ function ModelCard({ name, m, isTop }) {
 
           {cm.TP!=null && (
             <div className="expand-section">
-              <p className="expand-title">Confusion Matrix (test set — 641 samples)</p>
+              <p className="expand-title">Confusion Matrix (test set — 3,065 samples)</p>
               <div className="cm-wrap">
                 <table className="cm-table">
                   <thead><tr><th/><th>Pred: Nodule</th><th>Pred: Healthy</th></tr></thead>
@@ -107,7 +106,6 @@ function ModelCard({ name, m, isTop }) {
                 ['Best Val AUC',     fmt4(m.val_auc_best_epoch)],
                 m.pretrain_loss_final!=null&&['Pretrain loss (final)', m.pretrain_loss_final],
                 ['XAI Deletion AUC', fmt4(m.faithfulness_deletion_auc)],
-                ['XAI Insertion AUC',fmt4(m.faithfulness_insertion_auc)],
               ].filter(Boolean).map(([k,v])=>(
                 <div key={k} className="train-row"><span>{k}</span><span style={{fontFamily:'var(--mono)',fontWeight:600}}>{v}</span></div>
               ))}
@@ -143,7 +141,7 @@ export default function Dashboard() {
         <div className="dash-hd">
           <div>
             <h1 className="headline">Dashboard</h1>
-            <p className="subtext" style={{fontSize:15,marginTop:6}}>Detailed performance metrics for all models and XAI methods.</p>
+            <p className="subtext" style={{fontSize:15,marginTop:6}}>Detailed performance metrics and XAI faithfulness for the I-JEPA model.</p>
           </div>
           {isDemo && (
             <span className="badge badge-amber">
@@ -159,10 +157,10 @@ export default function Dashboard() {
         {/* KPIs */}
         <div className="kpi-row">
           {[
-            {label:'Best AUC-ROC',  value:pct(ijepa.auc_roc),  color:'var(--primary)', note:'I-JEPA probe'},
-            {label:'Best Accuracy', value:pct(ijepa.accuracy), color:'var(--success)', note:'Test set'},
-            {label:'Best F1',       value:pct(ijepa.f1),       color:'var(--cyan)',    note:'Nodule class'},
-            {label:'Best MCC',      value:fmt4(ijepa.mcc),     color:'var(--warning)', note:'Matthews Corr. Coef.'},
+            {label:'AUC-ROC',  value:pct(ijepa.auc_roc),  color:'var(--primary)', note:'I-JEPA probe'},
+            {label:'Accuracy', value:pct(ijepa.accuracy), color:'var(--success)', note:'Test set'},
+            {label:'F1',       value:pct(ijepa.f1),       color:'var(--cyan)',    note:'Nodule class'},
+            {label:'MCC',      value:fmt4(ijepa.mcc),     color:'var(--warning)', note:'Matthews Corr. Coef.'},
           ].map(k=>(
             <div key={k.label} className="card kpi-card">
               <div className="kpi-top"><span className="label">{k.label}</span><div className="kpi-dot" style={{background:k.color}}/></div>
@@ -174,7 +172,7 @@ export default function Dashboard() {
 
         {/* Section nav */}
         <div className="sec-nav">
-          {[['models','Models'],['xai','XAI Faithfulness'],['dataset','Dataset'],['training','Training Config']].map(([s,l])=>(
+          {[['models','Model'],['xai','XAI Faithfulness'],['dataset','Dataset'],['training','Training Config']].map(([s,l])=>(
             <button key={s} className={`sec-btn${sec===s?' active':''}`} onClick={()=>setSec(s)}>{l}</button>
           ))}
         </div>
@@ -183,11 +181,11 @@ export default function Dashboard() {
         {sec==='models' && (
           <div className="dash-section">
             <div className="section-intro">
-              <h2 className="section-title">Model Comparison</h2>
-              <p className="section-desc">Click a model card to expand per-class metrics, confusion matrix and training details.</p>
+              <h2 className="section-title">Model Performance</h2>
+              <p className="section-desc">Click the model card to expand per-class metrics, confusion matrix and training details.</p>
             </div>
             <div className="card" style={{padding:'1.25rem',marginBottom:'1.25rem'}}>
-              <p className="label" style={{marginBottom:'1rem'}}>Quick comparison — all models</p>
+              <p className="label" style={{marginBottom:'1rem'}}>Performance summary</p>
               <div className="tbl-wrap">
                 <table className="dtable">
                   <thead>
@@ -199,7 +197,6 @@ export default function Dashboard() {
                       return (
                         <tr key={name} className={top?'tr-top':''}>
                           <td><div style={{display:'flex',alignItems:'center',gap:6}}>
-                            {top&&<span className="best-pill">Best</span>}
                             <span style={{fontWeight:top?700:400,fontSize:12}}>{name}</span>
                           </div></td>
                           {['accuracy','auc_roc','precision','recall','f1','specificity'].map(k=>(
@@ -225,8 +222,8 @@ export default function Dashboard() {
             <div className="section-intro">
               <h2 className="section-title">XAI Faithfulness — Deletion Curve</h2>
               <p className="section-desc">
-                Lower Deletion AUC = more faithful (removing top regions hurts accuracy more).
-                Higher Insertion AUC = more faithful (keeping top regions recovers accuracy more).
+                Lower Deletion AUC = more faithful (removing the most important regions
+                degrades the prediction faster).
               </p>
             </div>
             <div className="faith-cards">
@@ -240,13 +237,6 @@ export default function Dashboard() {
                         <span style={{fontFamily:'var(--mono)',fontWeight:700,color:'var(--danger)'}}>{v.deletion_auc.toFixed(4)} ± {v.deletion_std?.toFixed(4)||'—'}</span>
                       </div>
                       <div className="faith-track"><div className="faith-fill fill-red" style={{width:`${v.deletion_auc*100}%`}}/></div>
-                    </div>
-                    <div>
-                      <div style={{display:'flex',justifyContent:'space-between',marginBottom:5}}>
-                        <span style={{fontSize:13,fontWeight:600,color:'var(--success)'}}>Insertion AUC ↑ <span style={{fontSize:11,fontWeight:400,color:'var(--g400)'}}>higher is better</span></span>
-                        <span style={{fontFamily:'var(--mono)',fontWeight:700,color:'var(--success)'}}>{v.insertion_auc.toFixed(4)} ± {v.insertion_std?.toFixed(4)||'—'}</span>
-                      </div>
-                      <div className="faith-track"><div className="faith-fill fill-green" style={{width:`${v.insertion_auc*100}%`}}/></div>
                     </div>
                     {v.method_detail && <p style={{fontSize:12,color:'var(--g400)',borderTop:'1px solid var(--g100)',paddingTop:10}}>{v.method_detail}</p>}
                   </div>
@@ -266,7 +256,7 @@ export default function Dashboard() {
             <div className="dash-2col">
               <div className="card" style={{padding:'1.25rem'}}>
                 <p className="label" style={{marginBottom:'1rem'}}>Train / Val / Test split</p>
-                {[{label:'Train',val:ds.train||2940,pct:70,color:'var(--primary)'},{label:'Val',val:ds.val||630,pct:15,color:'var(--cyan)'},{label:'Test',val:ds.test||630,pct:15,color:'var(--success)'}].map(s=>(
+                {[{label:'Train',val:ds.train||14302,pct:70,color:'var(--primary)'},{label:'Val',val:ds.val||3065,pct:15,color:'var(--cyan)'},{label:'Test',val:ds.test||3065,pct:15,color:'var(--success)'}].map(s=>(
                   <div key={s.label} style={{marginBottom:14}}>
                     <div style={{display:'flex',justifyContent:'space-between',fontSize:13,marginBottom:5}}>
                       <span style={{fontWeight:600,color:'var(--g700)'}}>{s.label}</span>
@@ -279,7 +269,7 @@ export default function Dashboard() {
                 ))}
                 <div style={{marginTop:'1rem',paddingTop:'1rem',borderTop:'1px solid var(--g200)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                   <span style={{fontSize:13,color:'var(--g500)'}}>Total</span>
-                  <b style={{fontFamily:'var(--mono)',fontSize:22,color:'var(--dark)'}}>{(ds.total_images||4200).toLocaleString()}</b>
+                  <b style={{fontFamily:'var(--mono)',fontSize:22,color:'var(--dark)'}}>{(ds.total_images||20432).toLocaleString()}</b>
                 </div>
               </div>
               <div className="card" style={{padding:'1.25rem'}}>

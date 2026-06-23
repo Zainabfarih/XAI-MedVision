@@ -56,72 +56,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Mock UI card */}
-        <div className="container">
-          <div className="mock-card">
-            <div className="mock-bar">
-              <div style={{display:'flex',gap:'6px'}}>
-                {['#ef4444','#f59e0b','#10b981'].map(c=><div key={c} style={{width:11,height:11,borderRadius:'50%',background:c}}/>)}
-              </div>
-              <span className="mock-title">medvision — scan analysis</span>
-              <div/>
-            </div>
-            <div className="mock-body">
-              <div className="mock-scan">
-                <svg viewBox="0 0 200 200" fill="none" style={{width:'100%',height:'100%'}}>
-                  <rect width="200" height="200" rx="6" fill="#0a0f1e"/>
-                  <ellipse cx="100" cy="100" rx="72" ry="80" fill="none" stroke="#1e2d4a" strokeWidth="1"/>
-                  <ellipse cx="78"  cy="105" rx="20" ry="30" fill="#0e1d35"/>
-                  <ellipse cx="122" cy="105" rx="20" ry="30" fill="#0e1d35"/>
-                  <ellipse cx="78"  cy="105" rx="14" ry="23" fill="#162a4a"/>
-                  <ellipse cx="122" cy="105" rx="14" ry="23" fill="#162a4a"/>
-                  <circle  cx="116" cy="97"  r="8"  fill="rgba(239,68,68,.2)"/>
-                  <circle  cx="116" cy="97"  r="5"  fill="rgba(239,68,68,.5)"/>
-                  <circle  cx="116" cy="97"  r="3"  fill="#ef4444"/>
-                  <ellipse cx="116" cy="97"  rx="18" ry="15" fill="url(#hg)" opacity=".45"/>
-                  <defs>
-                    <radialGradient id="hg" cx="50%" cy="50%" r="50%">
-                      <stop offset="0%"   stopColor="#ef4444" stopOpacity=".9"/>
-                      <stop offset="55%"  stopColor="#f59e0b" stopOpacity=".5"/>
-                      <stop offset="100%" stopColor="#10b981" stopOpacity="0"/>
-                    </radialGradient>
-                  </defs>
-                  <line x1="116" y1="85" x2="116" y2="109" stroke="#ef4444" strokeWidth=".8" strokeDasharray="2,2" opacity=".7"/>
-                  <line x1="104" y1="97" x2="128" y2="97" stroke="#ef4444" strokeWidth=".8" strokeDasharray="2,2" opacity=".7"/>
-                </svg>
-              </div>
-              <div className="mock-info">
-                <span className="badge badge-red" style={{fontSize:13,padding:'6px 14px'}}>⚠ Nodule Detected</span>
-                <div className="mock-conf">
-                  <div style={{fontSize:12,color:'var(--g500)',marginBottom:5}}>Confidence</div>
-                  <div style={{display:'flex',alignItems:'center',gap:8}}>
-                    <div style={{flex:1,height:6,background:'var(--g200)',borderRadius:3,overflow:'hidden'}}>
-                      <div style={{width:'87%',height:'100%',background:'var(--danger)',borderRadius:3}}/>
-                    </div>
-                    <b style={{fontFamily:'var(--mono)',color:'var(--danger)'}}>87%</b>
-                  </div>
-                </div>
-                <div className="mock-xai">
-                  {['Heatmap','Boundaries','Attribution'].map((m,i)=>(
-                    <div key={m} className="mock-xai-item">
-                      <div className="mock-xai-thumb" style={{
-                        background:'#0a0f1e',
-                        filter:['sepia(.8) saturate(4) hue-rotate(330deg)','sepia(.6) saturate(3) hue-rotate(80deg)','sepia(.6) saturate(3) hue-rotate(200deg)'][i],
-                      }}>
-                        <svg viewBox="0 0 60 60" style={{width:'100%',height:'100%'}}>
-                          <rect width="60" height="60" fill="#0a0f1e"/>
-                          <ellipse cx="30" cy="30" rx="18" ry="22" fill="#0e1d35"/>
-                          <circle cx="32" cy="28" r="7" fill="rgba(239,68,68,.35)"/>
-                        </svg>
-                      </div>
-                      <span>{m}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        
       </section>
 
       {/* ── Features ── */}
@@ -194,7 +129,7 @@ export default function Home() {
             </svg>
             <b style={{fontSize:16,letterSpacing:'-.03em'}}>MedVision</b>
           </div>
-          <p style={{color:'var(--g400)',fontSize:13}}>© 2025 MedVision · Research use only</p>
+          <p style={{color:'var(--g400)',fontSize:13}}>© 2026 MedVision · Research use only</p>
         </div>
       </footer>
     </main>

@@ -1,0 +1,36 @@
+# Training & analysis pipeline (notebooks 01–06)
+# Tested with Python 3.11
+
+# Core
+numpy>=1.26.0
+pandas>=2.1.0
+Pillow>=10.0.0
+scipy>=1.12.0
+tqdm>=4.66.0
+
+# Deep learning
+torch>=2.2.0
+torchvision>=0.17.0
+timm>=0.9.16
+
+# ML / metrics
+scikit-learn>=1.3.0
+scikit-image>=0.22.0
+
+# Explainability (XAI)
+grad-cam>=1.5.0
+lime>=0.2.0.1
+shap>=0.44.0
+
+# Visualisation
+matplotlib>=3.8.0
+
+# Medical imaging (3D volumes)
+nibabel>=5.2.0
+pydicom>=2.4.0
+
+# Notebooks
+jupyter>=1.0.0
+
+# Model download (Hugging Face)
+huggingface_hub>=0.23.0
