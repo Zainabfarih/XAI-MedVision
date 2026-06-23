@@ -10,6 +10,20 @@ sonde linéaire → comparaison XAI → évaluation, plus une **interface web de
 
 ---
 
+## Table des matières
+
+- [Démarrage rapide (démo web)](#démarrage-rapide-démo-web)
+- [Démo en vidéo](#démo-en-vidéo)
+- [Résultats](#résultats)
+- [Structure du dépôt](#structure-du-dépôt)
+- [Modèles (checkpoints)](#modèles-checkpoints)
+- [Échantillons de test](#échantillons-de-test)
+- [Pipeline d'entraînement (notebooks)](#pipeline-dentraînement-notebooks)
+- [Données (entraînement)](#données-entraînement)
+- [Stack technique](#stack-technique)
+
+---
+
 ## Démarrage rapide (démo web)
 
 Prérequis : **Python 3.11** (PyTorch ne supporte pas encore 3.14) et **Node.js 18+**.
@@ -47,9 +61,9 @@ prédictions). Détails : [`ui/README.md`](ui/README.md).
 
 ## Démo en vidéo
 
-<!-- Glissez votre vidéo ici depuis l'éditeur web GitHub, ou remplacez par votre lien. -->
+https://github.com/user-attachments/assets/a1815793-861d-4322-8e8c-011dd0555468
 
-> _Vidéo de démonstration à venir._
+
 
 ---
 
