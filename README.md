@@ -15,6 +15,7 @@ sonde linéaire → comparaison XAI → évaluation, plus une **interface web de
 - [Démarrage rapide (démo web)](#démarrage-rapide-démo-web)
 - [Démo en vidéo](#démo-en-vidéo)
 - [Résultats](#résultats)
+- [Comment les méthodes XAI expliquent les prédictions](#comment-les-méthodes-xai-expliquent-les-prédictions)
 - [Structure du dépôt](#structure-du-dépôt)
 - [Modèles (checkpoints)](#modèles-checkpoints)
 - [Échantillons de test](#échantillons-de-test)
@@ -88,7 +89,72 @@ Les figures et tableaux complets sont dans [`results/`](results/).
 
 ---
 
-## Structure du dépôt
+## Comment les méthodes XAI expliquent les prédictions
+
+Le modèle prédit si une image CT contient un nodule pulmonaire, mais une prédiction seule ne suffit pas en contexte médical — il faut aussi savoir *pourquoi* le modèle a décidé ainsi. C'est le rôle des trois méthodes d'explicabilité intégrées : **Grad-CAM**, **LIME** et **SHAP**. Chacune répond à cette question d'une façon différente et complémentaire.
+
+### Grad-CAM — Où le modèle regarde-t-il ?
+
+Grad-CAM produit une carte de chaleur (*heatmap*) colorée superposée à l'image CT. Les zones rouges/orangées indiquent les régions qui ont le plus influencé la décision du modèle ; les zones bleues/froides ont peu ou pas contribué. Un clinicien peut ainsi vérifier en un coup d'œil si le modèle « regarde » au bon endroit — par exemple, si la zone chaude coïncide effectivement avec un nodule visible sur le scanner.
+
+**Fonctionnement technique:**
+- Calcul du gradient du score de prédiction par rapport aux cartes d'activation de la dernière couche de l'encodeur ViT.
+- Ces gradients indiquent l'importance de chaque position spatiale ; ils sont moyennés par canal pour produire une carte d'importance 2D.
+- La carte est ensuite redimensionnée à la taille de l'image d'origine par interpolation bilinéaire.
+
+**Limites:**
+- Résolution spatiale limitée par la taille des patches ViT (16 × 16 pixels).
+- Indique *où* le modèle regarde, mais pas *comment* les valeurs de pixels individuels contribuent à la décision.
+
+---
+
+### LIME — Quelles zones de l'image sont déterminantes ?
+
+LIME découpe l'image en petites régions homogènes appelées *superpixels*, puis masque certaines de ces régions et observe comment la probabilité de prédiction change. Les superpixels dont l'absence fait le plus baisser le score « nodule » sont colorés positivement (ils *soutiennent* la prédiction) ; ceux dont l'absence ne change rien, ou améliore le score, sont colorés négativement (ils *contredisent* ou sont neutres).
+
+**Fonctionnement technique:**
+- Génération d'un grand nombre de versions perturbées de l'image (superpixels aléatoirement masqués en gris).
+- Récupération des prédictions du modèle sur chaque version perturbée.
+- Entraînement d'un modèle linéaire local (régression Ridge) pondéré par la similarité de chaque perturbation avec l'image originale.
+- Les coefficients de ce modèle linéaire constituent les scores d'importance par superpixel.
+
+**Limites:**
+- Les résultats peuvent légèrement varier d'une exécution à l'autre en raison du caractère aléatoire des perturbations.
+- La segmentation en superpixels peut ne pas correspondre aux contours anatomiques réels du scanner.
+
+---
+
+### SHAP — Quelle est la contribution exacte de chaque pixel ?
+
+SHAP attribue à chaque pixel (ou groupe de pixels) une valeur représentant sa contribution nette à l'écart entre la prédiction sur cette image et la prédiction moyenne du modèle sur l'ensemble des données. Un pixel avec une valeur SHAP positive pousse la prédiction vers « nodule » ; une valeur négative la pousse vers « sain ». Contrairement à Grad-CAM ou LIME, SHAP fournit une mesure rigoureusement justifiée par la théorie des jeux (valeurs de Shapley).
+
+**Fonctionnement technique:**
+- Utilisation de `DeepSHAP` (ou `GradientExplainer`), qui s'appuie sur les gradients du réseau et un ensemble d'images de référence (*background*).
+- Pour chaque pixel, la valeur est calculée comme la différence moyenne d'activation entre l'image cible et les images de référence.
+- Cette différence est pondérée par les gradients intégrés le long du chemin d'interpolation pour approximer les valeurs de Shapley.
+
+**Limites:**
+- Calcul plus coûteux que Grad-CAM ou LIME.
+- Les explications pixel par pixel peuvent être difficiles à interpréter visuellement sans seuillage ni regroupement spatial.
+- La qualité des explications dépend du choix des images de référence.
+
+---
+
+### Comparaison des méthodes et scores de fidélité
+
+La **fidélité** mesure à quel point une explication reflète réellement le comportement du modèle. Elle est évaluée ici par la courbe de suppression (*deletion curve*) : on masque progressivement les pixels jugés les plus importants par chaque méthode et on observe la chute de confiance du modèle. **Un AUC plus bas indique une méthode plus fidèle** — les pixels qu'elle identifie sont effectivement ceux dont la suppression dégrade le plus la prédiction.
+
+| Méthode   | AUC suppression | Interprétation |
+|-----------|-----------------|----------------|
+| Grad-CAM  | 0.2249          | Très fidèle — localisations précises et rapides |
+| LIME      | 0.2253          | Très fidèle — résultats comparables à Grad-CAM |
+| **SHAP**  | **0.2105**      | **Meilleure fidélité** — attributions les plus représentatives du modèle |
+
+Les trois méthodes sont proches, ce qui suggère une cohérence globale des explications. SHAP est légèrement supérieur en fidélité, au prix d'un temps de calcul plus élevé. Dans la démo web, les trois sont disponibles simultanément pour permettre une comparaison visuelle directe.
+
+> **Note pour les cliniciens.** Ces visualisations sont des outils d'aide à l'interprétation, pas des diagnostics. Une zone mise en évidence par le modèle doit toujours être confrontée à la lecture radiologique standard. Les méthodes XAI permettent de détecter des comportements inattendus du modèle (focalisation sur des artefacts, biais de fond), mais ne remplacent pas l'expertise médicale.
+
+
 
 ```
 XAI-MedVision/
