@@ -12,6 +12,7 @@ sonde linéaire → comparaison XAI → évaluation, plus une **interface web de
 
 ## Table des matières
 
+- [Présentation](#présentation)
 - [Démarrage rapide (démo web)](#démarrage-rapide-démo-web)
 - [Démo en vidéo](#démo-en-vidéo)
 - [Résultats](#résultats)
@@ -24,6 +25,10 @@ sonde linéaire → comparaison XAI → évaluation, plus une **interface web de
 - [Stack technique](#stack-technique)
 
 ---
+
+## Présentation
+
+Les slides de présentation du projet sont disponibles ici : [Lien vers la présentation](https://canva.link/fy4a6do1cx4ao9r).
 
 ## Démarrage rapide (démo web)
 
@@ -154,7 +159,7 @@ Les trois méthodes sont proches, ce qui suggère une cohérence globale des exp
 
 > **Note pour les cliniciens.** Ces visualisations sont des outils d'aide à l'interprétation, pas des diagnostics. Une zone mise en évidence par le modèle doit toujours être confrontée à la lecture radiologique standard. Les méthodes XAI permettent de détecter des comportements inattendus du modèle (focalisation sur des artefacts, biais de fond), mais ne remplacent pas l'expertise médicale.
 
-
+## Structure du dépôt
 
 ```
 XAI-MedVision/
